@@ -1,1 +1,16 @@
 @import "./../../node_modules/bootstrap/dist/css/bootstrap.css";
+@import "./../../node_modules/bootstrap-icons/font/bootstrap-icons.css";
+
+.btn-media {
+    border: 2px solid #51569c;
+    background: #050505;
+    color: #fff;
+}
+
+.btn-media:hover {
+    border: 2px solid #51569c;
+    background: #ffffff;
+    color: #050505;
+}
+
+
