@@ -2,7 +2,7 @@
   "name": "@hexlet/code",
   "version": "1.0.0",
   "description": "[![Actions Status](https://github.com/ViktorFAlex/frontend-project-11/workflows/hexlet-check/badge.svg)](https://github.com/ViktorFAlex/frontend-project-11/actions)",
-  "main": "index.js",
+  "main": "./src/js/index.js",
   "scripts": {
     "start": "webpack serve",
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -36,6 +36,8 @@
   },
   "dependencies": {
     "bootstrap": "^5.2.2",
-    "bootstrap-icons": "^1.10.1"
+    "bootstrap-icons": "^1.10.1",
+    "on-change": "^4.0.1",
+    "yup": "^0.32.11"
   }
 }
