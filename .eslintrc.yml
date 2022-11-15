@@ -11,3 +11,4 @@ rules:
   no-console: 0
   import/extension: 0
   no-param-reassign: ["error", { "props": false }]
+  "import/no-extraneous-dependencies": ["error", {"devDependencies": true}]

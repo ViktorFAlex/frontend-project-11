@@ -1,19 +1,7 @@
-const handleNewFeed = (elements) => {
-  const {
-    input, feedback, submit, form,
-  } = elements;
-  feedback.textContent = 'RSS успешно загружен';
-  feedback.classList.add('text-success');
-  input.disabled = false;
-  submit.disabled = false;
-  form.reset();
-  form.focus();
-};
-
 const resetFeedback = (elements) => {
   const { feedback, input } = elements;
   if (input.classList.contains('is-invalid')) {
-    feedback.classList.remove('is-invalid');
+    input.classList.remove('is-invalid');
   }
   if (feedback.classList.contains('text-danger')) {
     feedback.classList.remove('text-danger');
@@ -23,13 +11,10 @@ const resetFeedback = (elements) => {
   }
 };
 
-const handleError = (elements, errorMessage) => {
-  if (!errorMessage) return;
-  const { input, feedback } = elements;
-  resetFeedback(elements);
-  feedback.textContent = errorMessage;
-  input.classList.add('is-invalid');
-  feedback.classList.add('text-danger');
+const handleMessage = (elements, message, i18n) => {
+  if (!message) return;
+  const { feedback } = elements;
+  feedback.textContent = i18n.t(message);
 };
 
 const handleProcessState = (elements, processState) => {
@@ -44,20 +29,26 @@ const handleProcessState = (elements, processState) => {
       elements.submit.disabled = true;
       break;
     case ('success'):
-      handleNewFeed(elements);
+      elements.feedback.classList.add('text-success');
+      elements.form.reset();
+      elements.form.focus();
+      break;
+    case ('error'):
+      elements.feedback.classList.add('text-danger');
+      elements.input.classList.add('is-invalid');
       break;
     default:
       break;
   }
 };
 
-const initView = (elements) => (path, value) => {
+const initView = (elements, i18n) => (path, value) => {
   switch (path) {
     case ('form.url'):
     case ('feeds'):
       break;
-    case ('error'):
-      handleError(elements, value);
+    case ('message'):
+      handleMessage(elements, value, i18n);
       break;
     case ('processState'):
       handleProcessState(elements, value);

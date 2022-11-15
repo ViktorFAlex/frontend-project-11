@@ -27,6 +27,7 @@
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-plugin-import": "^2.26.0",
     "html-webpack-plugin": "^5.5.0",
+    "i18next": "^22.0.5",
     "mini-css-extract-plugin": "^2.6.1",
     "prettier": "^2.7.1",
     "style-loader": "^3.3.1",

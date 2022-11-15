@@ -1,22 +1,24 @@
+import i18next from 'i18next';
 import * as yup from 'yup';
 import onChange from 'on-change';
 import initView from './view';
+import resources from '../locales/index';
 
 const schema = yup.object().shape({
   url: yup
     .string()
-    .matches(/^(http:|https:)\S+(\.rss)$/m, 'Ссылка должна быть валидным URL')
+    .matches(/^(http:|https:)\S+(\.rss)$/m, 'invalidUrl') //  possible replacement: url()
     .required()
-    .url()
-    .test('unique', 'RSS уже существует', (value, { options }) => {
+    .test('unique', 'existingFeed', (value, { options }) => {
       const { feeds } = options;
       return !feeds.includes(value);
     }),
 });
 
 export default () => {
+  const defaultLanguage = 'ru';
   const initInput = '';
-  const initError = null;
+  const initMessage = null;
   const initProcessState = 'filling';
   const initialState = {
     form: {
@@ -25,8 +27,16 @@ export default () => {
     feeds: [],
     processState: initProcessState,
     errors: {},
-    error: initError,
+    message: initMessage,
   };
+
+  const i18nextInstance = i18next.createInstance();
+
+  i18nextInstance.init({
+    lng: defaultLanguage,
+    debug: false,
+    resources,
+  });
 
   const elements = {
     input: document.querySelector('.form-control'),
@@ -35,7 +45,7 @@ export default () => {
     feedback: document.querySelector('.feedback'),
   };
 
-  const state = onChange(initialState, initView(elements));
+  const state = onChange(initialState, initView(elements, i18nextInstance));
 
   elements.input.addEventListener('input', (event) => {
     event.preventDefault();
@@ -48,16 +58,19 @@ export default () => {
     event.preventDefault();
     state.processState = 'sending';
     const { feeds } = state;
-    schema.validate(state.form, { feeds })
+    schema.validate(state.form, { feeds }) // TODO: add aboutEarly: false, on second field in form!
       .then(() => {
         state.feeds = [...state.feeds, state.form.url];
         state.processState = 'success';
+        state.message = 'valid';
         state.form.url = initInput;
+        state.processState = 'filling';
       })
       .catch((e) => {
-        state.error = e.message;
+        state.processState = 'error';
+        state.message = e.message;
         state.processState = 'filling';
       });
-    state.error = initError;
+    state.message = initMessage;
   });
 };
