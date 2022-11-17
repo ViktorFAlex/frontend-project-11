@@ -107,6 +107,43 @@ const showModal = (modal, title, description, link) => {
   buttons.forEach((btn) => btn.addEventListener('click', () => hideModal(modal)), { once: true });
 };
 
+const createNewListLink = (link, title, postId, isChecked) => {
+  const a = document.createElement('a');
+  if (isChecked) {
+    a.classList.add(...classLists.aVisited);
+  } else {
+    a.classList.add(...classLists.aUnvisited);
+  }
+  Object.assign(a, {
+    href: link,
+    target: '_blank',
+    rel: 'noopener noreferrer',
+    textContent: title,
+  });
+  a.dataset.id = postId;
+  return a;
+};
+
+const createNewListButton = (postId, i18n) => {
+  const button = document.createElement('button');
+  button.classList.add(...classLists.button);
+  button.setAttribute('type', 'button');
+  button.textContent = i18n.t('textContents.show');
+  Object.assign(button.dataset, {
+    id: postId,
+    bsToggle: 'modal',
+    bsTarget: '#modal',
+  });
+  return button;
+};
+
+const createNewListItem = (anchor, button) => {
+  const li = document.createElement('li');
+  li.classList.add(...classLists.liDefault, ...classLists.liPosts);
+  li.append(anchor, button);
+  return li;
+};
+
 const renderNewPosts = (elements, newPosts, checked, i18n) => {
   const { posts, modal } = elements;
   posts.innerHTML = '';
@@ -117,31 +154,9 @@ const renderNewPosts = (elements, newPosts, checked, i18n) => {
     const {
       title, description, link, postId,
     } = post;
-    const li = document.createElement('li');
-    li.classList.add(...classLists.liDefault, ...classLists.liPosts);
-    const a = document.createElement('a');
-    const button = document.createElement('button');
     const isChecked = checked.some(({ id }) => id === postId);
-    if (isChecked) {
-      a.classList.add(...classLists.aVisited);
-    } else {
-      a.classList.add(...classLists.aUnvisited);
-    }
-    Object.assign(a, {
-      href: link,
-      target: '_blank',
-      rel: 'noopener noreferrer',
-      textContent: title,
-    });
-    a.dataset.id = postId;
-    button.classList.add(...classLists.button);
-    button.setAttribute('type', 'button');
-    button.textContent = i18n.t('textContents.show');
-    Object.assign(button.dataset, {
-      id: postId,
-      bsToggle: 'modal',
-      bsTarget: '#modal',
-    });
+    const a = createNewListLink(link, title, postId, isChecked);
+    const button = createNewListButton(postId, i18n);
     [a, button].forEach((el) => el.addEventListener('click', () => {
       if (!isChecked) {
         checked.push({ id: postId, checked: true });
@@ -149,7 +164,7 @@ const renderNewPosts = (elements, newPosts, checked, i18n) => {
       makeLinkVisited(el);
     }));
     button.addEventListener('click', () => showModal(modal, title, description, link));
-    li.append(a, button);
+    const li = createNewListItem(a, button);
     ul.append(li);
   });
   card.append(cardBody, ul);
