@@ -48,12 +48,12 @@ const addNewPosts = (posts, doc, id) => {
 };
 
 const makeRequest = (address) => axios.get(address)
-  .then((response) => {
-    const content = response.data.contents;
-    if (content) {
-      return parser(content);
+  .then((response) => parser(response.data.contents))
+  .catch((e) => {
+    if (e.message === 'Network Error') {
+      throw new Error('networkError');
     }
-    throw new Error('networkError');
+    throw e;
   });
 
 const checkNewPosts = (address, state, id) => {
@@ -62,6 +62,9 @@ const checkNewPosts = (address, state, id) => {
       makeRequest(address)
         .then((data) => {
           state.threads.posts = addNewPosts(state.threads.posts, data, id);
+        })
+        .catch((e) => {
+          throw e;
         })
         .finally(() => handler());
     }, 5000);
