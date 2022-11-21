@@ -1,3 +1,5 @@
+import 'bootstrap';
+
 const resetFeedback = (elements) => {
   const { feedback, input } = elements;
   if (input.classList.contains('is-invalid')) {
@@ -104,7 +106,7 @@ const renderNewPosts = (elements, newPosts, checked, i18n) => {
       const modalBody = modal.querySelector('.modal-body');
       modalTitle.textContent = title;
       modalBody.textContent = description;
-      modal.show();
+      modal.modal('show');
     });
 
     const li = createNewListItem(a, button);
