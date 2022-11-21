@@ -4,8 +4,7 @@ import onChange from 'on-change';
 import { v4 as uuid } from 'uuid';
 import axios from 'axios';
 import initView from './view';
-import resources from './locales/index';
-import parser from './parsers/parser';
+import { parser, resources, RouteHandler } from './modules/index';
 
 const validate = (form, visitedUrls) => {
   const schema = yup.object().shape({
@@ -16,16 +15,6 @@ const validate = (form, visitedUrls) => {
       .notOneOf(visitedUrls, 'existingFeed'),
   });
   return schema.validate(form);
-};
-
-const routesHandlers = {
-  getApiRoute: () => 'https://allorigins.hexlet.app/get?disableCache=true&url=',
-  encode(url) {
-    return encodeURIComponent(url);
-  },
-  buildRoute(url) {
-    return `${this.getApiRoute()}${this.encode(url)}`;
-  },
 };
 
 const addNewFeed = (feeds, doc, id) => {
@@ -58,8 +47,8 @@ const addNewPosts = (posts, doc, id) => {
 };
 
 const makeRequest = (address) => {
-  const route = routesHandlers.buildRoute(address);
-  return axios.get(route)
+  const routeHandler = new RouteHandler(address);
+  return axios.get(routeHandler.buildRoute())
     .then((response) => parser(response.data.contents))
     .catch((e) => {
       if (e.message === 'Network Error') {
@@ -70,23 +59,17 @@ const makeRequest = (address) => {
 };
 
 const checkNewPosts = (state) => {
-  const { length } = state.urls;
   const handler = () => {
-    if (length !== state.urls.length) {
-      return;
-    }
     setTimeout(() => {
-      Promise.all(state.urls.map(makeRequest))
-        .then((responses) => {
-          responses.forEach((response, index) => {
-            const { id } = state.threads.feeds[index];
-            state.threads.posts = addNewPosts(state.threads.posts, response, id);
-          });
+      Promise.allSettled(state.urls.map((url, index) => makeRequest(url)
+        .then((data) => {
+          const { id } = state.threads.feeds[index];
+          state.threads.posts = addNewPosts(state.threads.posts, data, id);
         })
         .catch((e) => {
           throw e;
-        })
-        .finally(() => {
+        })))
+        .then(() => {
           handler();
         });
     }, 5000);
@@ -109,8 +92,9 @@ export default () => {
       posts: [],
       feeds: [],
     },
-    processState: '',
-    errors: null,
+    processState: 'pending',
+    error: null,
+    message: '',
     currentRoute: '',
   };
 
@@ -133,6 +117,7 @@ export default () => {
   })
     .then(() => {
       const state = onChange(initialState, initView(elements, i18nextInstance, initialState));
+      checkNewPosts(state);
 
       elements.input.addEventListener('input', (event) => {
         event.preventDefault();
@@ -144,28 +129,28 @@ export default () => {
       elements.form.addEventListener('submit', (event) => {
         event.preventDefault();
         state.processState = 'sending';
-        const { urls } = state;
-        validate(state.form, urls) // TODO: add aboutEarly: false, with second field in form!
-          .then(() => makeRequest(state.form.url))
+        const { form, urls } = state;
+        validate(form, urls) // TODO: add aboutEarly: false, with second field in form!
+          .then(() => makeRequest(form.url))
           .then((data) => {
             const id = uuid();
             state.threads.feeds = addNewFeed(state.threads.feeds, data, id);
             state.threads.posts = addNewPosts(state.threads.posts, data, id);
-            state.urls = [...state.urls, state.form.url];
-            state.errors = {};
+            state.urls = [...urls, form.url];
+            state.error = null;
             state.processState = 'success';
-            state.form.valid = true;
-            state.form.url = '';
-            checkNewPosts(state);
+            state.message = 'added';
+            form.valid = true;
+            form.url = '';
           })
           .catch((e) => {
-            state.form.valid = false;
+            form.valid = false;
             state.processState = 'error';
-            state.errors = e;
+            state.error = e;
           })
           .finally(() => {
-            state.processState = 'filling';
-            state.form.valid = false;
+            state.processState = 'pending';
+            form.valid = false;
           });
       });
     })

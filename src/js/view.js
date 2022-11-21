@@ -137,19 +137,17 @@ const renderNewFeed = (container, feeds, i18n) => {
   container.append(card);
 };
 
-const handleErrors = (elements, errors, i18n) => {
-  const { message } = errors;
+const handleErrors = (elements, error, i18n) => {
+  const { message } = error;
   if (!message) return;
   const { feedback } = elements;
   feedback.textContent = i18n.t(`messages.${message}`);
 };
 
-const addNewFeedHandler = () => {
-  const message = 'added';
-  return (elements, i18n) => {
-    const { feedback } = elements;
-    feedback.textContent = i18n.t(`messages.${message}`);
-  };
+const addNewFeedHandler = () => (elements, state, i18n) => {
+  const { feedback } = elements;
+  const { message } = state;
+  feedback.textContent = i18n.t(`messages.${message}`);
 };
 
 const handleNewFeed = addNewFeedHandler();
@@ -157,6 +155,7 @@ const handleNewFeed = addNewFeedHandler();
 const handleProcessState = (elements, processState) => {
   switch (processState) {
     case ('filling'):
+    case ('pending'):
       elements.input.disabled = false;
       elements.submit.disabled = false;
       break;
@@ -185,12 +184,13 @@ const initView = (elements, i18n, state) => (path, value) => {
     case ('urls'):
     case ('currentRoute'):
     case ('UIState.checkedPosts'):
+    case ('message'):
       break;
     case ('form.valid'):
       if (!value) {
         break;
       }
-      handleNewFeed(elements, i18n);
+      handleNewFeed(elements, state, i18n);
       break;
     case ('threads.posts'):
       renderNewPosts(elements, value, state.UIState.checkedPosts, i18n);
@@ -198,7 +198,7 @@ const initView = (elements, i18n, state) => (path, value) => {
     case ('threads.feeds'):
       renderNewFeed(elements.feeds, value, i18n);
       break;
-    case ('errors'):
+    case ('error'):
       handleErrors(elements, value, i18n);
       break;
     case ('processState'):
