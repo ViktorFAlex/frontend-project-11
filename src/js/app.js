@@ -7,16 +7,26 @@ import initView from './view';
 import resources from './locales/index';
 import parser from './parsers/parser';
 
-const schema = yup.object().shape({
-  url: yup
-    .string()
-    .url('invalidUrl')
-    .required()
-    .test('unique', 'existingFeed', (value, { options }) => {
-      const { urls } = options;
-      return !urls.includes(value);
-    }),
-});
+const validate = (form, visitedUrls) => {
+  const schema = yup.object().shape({
+    url: yup
+      .string()
+      .url('invalidUrl')
+      .required()
+      .notOneOf(visitedUrls, 'existingFeed'),
+  });
+  return schema.validate(form);
+};
+
+const routesHandlers = {
+  getApiRoute: () => 'https://allorigins.hexlet.app/get?disableCache=true&url=',
+  encode(url) {
+    return encodeURIComponent(url);
+  },
+  buildRoute(url) {
+    return `${this.getApiRoute()}${this.encode(url)}`;
+  },
+};
 
 const addNewFeed = (feeds, doc, id) => {
   const title = doc.querySelector('channel > title').textContent;
@@ -47,26 +57,38 @@ const addNewPosts = (posts, doc, id) => {
   return [...newPosts, ...posts];
 };
 
-const makeRequest = (address) => axios.get(address)
-  .then((response) => parser(response.data.contents))
-  .catch((e) => {
-    if (e.message === 'Network Error') {
-      throw new Error('networkError');
-    }
-    throw e;
-  });
+const makeRequest = (address) => {
+  const route = routesHandlers.buildRoute(address);
+  return axios.get(route)
+    .then((response) => parser(response.data.contents))
+    .catch((e) => {
+      if (e.message === 'Network Error') {
+        throw new Error('networkError');
+      }
+      throw e;
+    });
+};
 
-const checkNewPosts = (address, state, id) => {
+const checkNewPosts = (state) => {
+  const { length } = state.urls;
   const handler = () => {
+    if (length !== state.urls.length) {
+      return;
+    }
     setTimeout(() => {
-      makeRequest(address)
-        .then((data) => {
-          state.threads.posts = addNewPosts(state.threads.posts, data, id);
+      Promise.all(state.urls.map(makeRequest))
+        .then((responses) => {
+          responses.forEach((response, index) => {
+            const { id } = state.threads.feeds[index];
+            state.threads.posts = addNewPosts(state.threads.posts, response, id);
+          });
         })
         .catch((e) => {
           throw e;
         })
-        .finally(() => handler());
+        .finally(() => {
+          handler();
+        });
     }, 5000);
   };
   handler();
@@ -74,13 +96,10 @@ const checkNewPosts = (address, state, id) => {
 
 export default () => {
   const defaultLanguage = 'ru';
-  const initInput = '';
-  const initMessage = null;
-  const initProcessState = 'filling';
-  const defaultRoute = '';
   const initialState = {
     form: {
-      url: initInput,
+      url: '',
+      valid: false,
     },
     UIState: {
       checkedPosts: [],
@@ -90,19 +109,10 @@ export default () => {
       posts: [],
       feeds: [],
     },
-    processState: initProcessState,
-    errors: {},
-    message: initMessage,
-    currentRoute: defaultRoute,
+    processState: '',
+    errors: null,
+    currentRoute: '',
   };
-
-  const i18nextInstance = i18next.createInstance();
-
-  i18nextInstance.init({
-    lng: defaultLanguage,
-    debug: false,
-    resources,
-  });
 
   const elements = {
     input: document.querySelector('.form-control'),
@@ -114,51 +124,52 @@ export default () => {
     modal: document.querySelector('.modal'),
   };
 
-  const state = onChange(initialState, initView(elements, i18nextInstance, initialState));
+  const i18nextInstance = i18next.createInstance();
 
-  elements.input.addEventListener('input', (event) => {
-    event.preventDefault();
-    state.processState = 'filling';
-    const { value } = event.target;
-    state.form.url = value;
-  });
+  i18nextInstance.init({
+    lng: defaultLanguage,
+    debug: false,
+    resources,
+  })
+    .then(() => {
+      const state = onChange(initialState, initView(elements, i18nextInstance, initialState));
 
-  const routesHandlers = {
-    getApiRoute: () => 'https://allorigins.hexlet.app/get?disableCache=true&url=',
-    encode(url) {
-      return encodeURIComponent(url);
-    },
-    buildRoute(url) {
-      return `${this.getApiRoute()}${this.encode(url)}`;
-    },
-  };
-
-  elements.form.addEventListener('submit', (event) => {
-    event.preventDefault();
-    state.processState = 'sending';
-    const { urls } = state;
-    schema.validate(state.form, { urls }) // TODO: add aboutEarly: false, with second field in form!
-      .then(() => {
-        state.currentRoute = routesHandlers.buildRoute(state.form.url);
-        return makeRequest(state.currentRoute);
-      })
-      .then((data) => {
-        const id = uuid();
-        state.threads.feeds = addNewFeed(state.threads.feeds, data, id);
-        state.threads.posts = addNewPosts(state.threads.posts, data, id);
-        state.urls = [...state.urls, state.form.url];
-        state.processState = 'success';
-        state.message = 'added';
-        state.form.url = initInput;
-        checkNewPosts(state.currentRoute, state, id);
-      })
-      .catch((e) => {
-        state.processState = 'error';
-        state.message = e.message;
-      })
-      .finally(() => {
+      elements.input.addEventListener('input', (event) => {
+        event.preventDefault();
         state.processState = 'filling';
-        state.message = initMessage;
+        const { value } = event.target;
+        state.form.url = value;
       });
-  });
+
+      elements.form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        state.processState = 'sending';
+        const { urls } = state;
+        validate(state.form, urls) // TODO: add aboutEarly: false, with second field in form!
+          .then(() => makeRequest(state.form.url))
+          .then((data) => {
+            const id = uuid();
+            state.threads.feeds = addNewFeed(state.threads.feeds, data, id);
+            state.threads.posts = addNewPosts(state.threads.posts, data, id);
+            state.urls = [...state.urls, state.form.url];
+            state.errors = {};
+            state.processState = 'success';
+            state.form.valid = true;
+            state.form.url = '';
+            checkNewPosts(state);
+          })
+          .catch((e) => {
+            state.form.valid = false;
+            state.processState = 'error';
+            state.errors = e;
+          })
+          .finally(() => {
+            state.processState = 'filling';
+            state.form.valid = false;
+          });
+      });
+    })
+    .catch(() => {
+      throw new Error('Couldn\'t load i18 module!');
+    });
 };

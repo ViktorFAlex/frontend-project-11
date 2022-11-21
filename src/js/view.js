@@ -24,23 +24,6 @@ const classLists = {
   button: ['btn', 'btn-outline-primary', 'btn-sm'],
 };
 
-const attributesForModal = {
-  body: {
-    class: 'modal-open',
-    style: 'overflow: hidden; padding-right: 17px',
-  },
-  modalShow: {
-    class: 'show',
-    style: 'display: block',
-    'aria-modal': true,
-    role: 'dialog',
-  },
-  modalHide: {
-    style: 'display-none',
-    'aria-hidden': true,
-  },
-};
-
 const generateContainers = () => {
   const elements = {
     card: document.createElement('div'),
@@ -58,53 +41,6 @@ const makeLinkVisited = (element) => {
   const linkElement = element.parentNode.querySelector('a');
   linkElement.className = '';
   linkElement.classList.add(...classLists.aVisited);
-};
-
-const addModalAttributes = (element, attributes) => {
-  attributes.forEach(([attr, value]) => {
-    if (attr === 'class') {
-      element.classList.add(value);
-    } else {
-      element.setAttribute(attr, value);
-    }
-  });
-};
-
-const removeModalAttribues = (element, attributes) => {
-  attributes.forEach(([attr, value]) => {
-    if (attr === 'class') {
-      element.classList.remove(value);
-    } else {
-      element.removeAttribute(attr, value);
-    }
-  });
-};
-
-const hideModal = (modal) => {
-  const body = modal.parentNode;
-  const bodyAttributes = Object.entries(attributesForModal.body);
-  removeModalAttribues(body, bodyAttributes);
-  const currentModalAttributes = Object.entries(attributesForModal.modalShow);
-  const futureModalAttribues = Object.entries(attributesForModal.modalHide);
-  removeModalAttribues(modal, currentModalAttributes);
-  addModalAttributes(modal, futureModalAttribues);
-};
-
-const showModal = (modal, title, description, link) => {
-  const body = modal.parentNode;
-  const bodyAttributes = Object.entries(attributesForModal.body);
-  addModalAttributes(body, bodyAttributes);
-  modal.removeAttribute('aria-hidden');
-  const modalAttributes = Object.entries(attributesForModal.modalShow);
-  addModalAttributes(modal, modalAttributes);
-  const modalTitle = modal.querySelector('.modal-title');
-  modalTitle.textContent = title;
-  const modalBody = modal.querySelector('.modal-body');
-  modalBody.textContent = description;
-  const linkElement = modal.querySelector('a');
-  linkElement.setAttribute('href', link);
-  const buttons = modal.querySelectorAll('button');
-  buttons.forEach((btn) => btn.addEventListener('click', () => hideModal(modal)), { once: true });
 };
 
 const createNewListLink = (link, title, postId, isChecked) => {
@@ -163,7 +99,14 @@ const renderNewPosts = (elements, newPosts, checked, i18n) => {
       }
       makeLinkVisited(el);
     }));
-    button.addEventListener('click', () => showModal(modal, title, description, link));
+    button.addEventListener('click', () => {
+      const modalTitle = modal.querySelector('.modal-title');
+      const modalBody = modal.querySelector('.modal-body');
+      modalTitle.textContent = title;
+      modalBody.textContent = description;
+      modal.show();
+    });
+
     const li = createNewListItem(a, button);
     ul.append(li);
   });
@@ -192,11 +135,22 @@ const renderNewFeed = (container, feeds, i18n) => {
   container.append(card);
 };
 
-const handleMessage = (elements, message, i18n) => {
+const handleErrors = (elements, errors, i18n) => {
+  const { message } = errors;
   if (!message) return;
   const { feedback } = elements;
   feedback.textContent = i18n.t(`messages.${message}`);
 };
+
+const addNewFeedHandler = () => {
+  const message = 'added';
+  return (elements, i18n) => {
+    const { feedback } = elements;
+    feedback.textContent = i18n.t(`messages.${message}`);
+  };
+};
+
+const handleNewFeed = addNewFeedHandler();
 
 const handleProcessState = (elements, processState) => {
   switch (processState) {
@@ -230,14 +184,20 @@ const initView = (elements, i18n, state) => (path, value) => {
     case ('currentRoute'):
     case ('UIState.checkedPosts'):
       break;
+    case ('form.valid'):
+      if (!value) {
+        break;
+      }
+      handleNewFeed(elements, i18n);
+      break;
     case ('threads.posts'):
       renderNewPosts(elements, value, state.UIState.checkedPosts, i18n);
       break;
     case ('threads.feeds'):
       renderNewFeed(elements.feeds, value, i18n);
       break;
-    case ('message'):
-      handleMessage(elements, value, i18n);
+    case ('errors'):
+      handleErrors(elements, value, i18n);
       break;
     case ('processState'):
       handleProcessState(elements, value);
