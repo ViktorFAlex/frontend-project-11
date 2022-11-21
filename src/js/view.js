@@ -106,7 +106,7 @@ const renderNewPosts = (elements, newPosts, checked, i18n) => {
       const modalBody = modal.querySelector('.modal-body');
       modalTitle.textContent = title;
       modalBody.textContent = description;
-      modal.modal('show');
+      modal.show();
     });
 
     const li = createNewListItem(a, button);
