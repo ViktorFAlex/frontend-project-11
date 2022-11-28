@@ -4,7 +4,7 @@ import onChange from 'on-change';
 import { v4 as uuid } from 'uuid';
 import axios from 'axios';
 import initView from './view';
-import { parser, resources, RouteHandler } from './modules/index';
+import { parser, resources, buildRoute } from './modules/index';
 
 const validate = (form, visitedUrls) => {
   const schema = yup.object().shape({
@@ -17,38 +17,34 @@ const validate = (form, visitedUrls) => {
   return schema.validate(form);
 };
 
-const addNewFeed = (feeds, doc, id) => {
-  const title = doc.querySelector('channel > title').textContent;
-  const description = doc.querySelector('channel > description').textContent;
-  const newFeed = { title, description, id };
-  return [...feeds, newFeed];
+const addNewFeed = (feeds, parsedData, id, url) => {
+  const { feed } = parsedData;
+  return [...feeds, { ...feed, id, url }];
 };
 
-const addNewPosts = (posts, doc, id) => {
-  const items = doc.querySelectorAll('item');
-  const startingIndex = posts.length;
-  const newPosts = [...items]
-    .filter((item) => posts
-      .every((post) => {
-        const itemTitleText = item.querySelector('title').textContent;
-        const postTitleText = post.title;
-        return id !== post.feedId || itemTitleText !== postTitleText;
+const addNewPosts = (oldPosts, parsedData, id) => {
+  const { posts } = parsedData;
+  const startingIndex = oldPosts.length;
+  const newPosts = posts
+    .filter((post) => oldPosts
+      .every((oldPost) => {
+        const { title } = post;
+        const { title: oldTitle, feedId } = oldPost;
+        return id !== feedId || oldTitle !== title;
       }))
-    .map((newItem, index) => {
-      const title = newItem.querySelector('title').textContent;
-      const description = newItem.querySelector('description').textContent;
-      const link = newItem.querySelector('link').textContent;
+    .map((newPost, index) => {
+      const { title, description, link } = newPost;
       const postId = startingIndex + index;
       return {
         feedId: id, title, description, link, postId,
       };
     });
-  return [...newPosts, ...posts];
+  return [...newPosts, ...oldPosts];
 };
 
 const makeRequest = (address) => {
-  const routeHandler = new RouteHandler(address);
-  return axios.get(routeHandler.buildRoute())
+  const route = buildRoute(address);
+  return axios.get(route)
     .then((response) => parser(response.data.contents))
     .catch((e) => {
       if (e.message === 'Network Error') {
@@ -60,10 +56,12 @@ const makeRequest = (address) => {
 
 const checkNewPosts = (state) => {
   const handler = () => {
+    const { threads: { feeds } } = state;
+    const feedsUrls = feeds.map(({ url }) => url);
     setTimeout(() => {
-      Promise.allSettled(state.urls.map((url, index) => makeRequest(url)
+      Promise.allSettled(feedsUrls.map((url, index) => makeRequest(url)
         .then((data) => {
-          const { id } = state.threads.feeds[index];
+          const { id } = feeds[index];
           state.threads.posts = addNewPosts(state.threads.posts, data, id);
         })
         .catch((e) => {
@@ -86,8 +84,11 @@ export default () => {
     },
     UIState: {
       checkedPosts: [],
+      modal: {
+        show: false,
+        currentId: null,
+      },
     },
-    urls: [],
     threads: {
       posts: [],
       feeds: [],
@@ -119,6 +120,16 @@ export default () => {
       const state = onChange(initialState, initView(elements, i18nextInstance, initialState));
       checkNewPosts(state);
 
+      elements.modal.addEventListener('show.bs.modal', (e) => {
+        const { id } = e.relatedTarget.dataset;
+        state.UIState.modal.currentId = id;
+        state.UIState.modal.show = true;
+      });
+
+      elements.modal.addEventListener('hide.bs.modal', () => {
+        state.UIState.modal.show = false;
+      });
+
       elements.input.addEventListener('input', (event) => {
         event.preventDefault();
         state.processState = 'filling';
@@ -129,14 +140,14 @@ export default () => {
       elements.form.addEventListener('submit', (event) => {
         event.preventDefault();
         state.processState = 'sending';
-        const { form, urls } = state;
+        const { form, threads } = state;
+        const urls = threads.feeds.map(({ url }) => url);
         validate(form, urls) // TODO: add aboutEarly: false, with second field in form!
           .then(() => makeRequest(form.url))
           .then((data) => {
             const id = uuid();
-            state.threads.feeds = addNewFeed(state.threads.feeds, data, id);
-            state.threads.posts = addNewPosts(state.threads.posts, data, id);
-            state.urls = [...urls, form.url];
+            threads.feeds = addNewFeed(threads.feeds, data, id, form.url);
+            threads.posts = addNewPosts(threads.posts, data, id);
             state.error = null;
             state.processState = 'success';
             state.message = 'added';
@@ -154,7 +165,7 @@ export default () => {
           });
       });
     })
-    .catch(() => {
-      throw new Error('Couldn\'t load i18 module!');
+    .catch((e) => {
+      throw e;
     });
 };

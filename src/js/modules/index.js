@@ -1,5 +1,5 @@
 import parser from './parsers/parser';
 import resources from './locales/index';
-import RouteHandler from './utils/route-handler';
+import buildRoute from './utils/build-route';
 
-export { parser, resources, RouteHandler };
+export { parser, resources, buildRoute };

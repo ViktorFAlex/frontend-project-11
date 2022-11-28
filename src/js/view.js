@@ -1,5 +1,3 @@
-import 'bootstrap';
-
 const resetFeedback = (elements) => {
   const { feedback, input } = elements;
   if (input.classList.contains('is-invalid')) {
@@ -83,14 +81,14 @@ const createNewListItem = (anchor, button) => {
 };
 
 const renderNewPosts = (elements, newPosts, checked, i18n) => {
-  const { posts, modal } = elements;
+  const { posts } = elements;
   posts.innerHTML = '';
   const [card, cardBody, h2, ul] = generateContainers();
   h2.textContent = i18n.t('textContents.postsHeader');
   cardBody.append(h2);
   newPosts.forEach((post) => {
     const {
-      title, description, link, postId,
+      title, link, postId,
     } = post;
     const isChecked = checked.some(({ id }) => id === postId);
     const a = createNewListLink(link, title, postId, isChecked);
@@ -101,14 +99,6 @@ const renderNewPosts = (elements, newPosts, checked, i18n) => {
       }
       makeLinkVisited(el);
     }));
-    button.addEventListener('click', () => {
-      const modalTitle = modal.querySelector('.modal-title');
-      const modalBody = modal.querySelector('.modal-body');
-      modalTitle.textContent = title;
-      modalBody.textContent = description;
-      modal.show();
-    });
-
     const li = createNewListItem(a, button);
     ul.append(li);
   });
@@ -137,6 +127,17 @@ const renderNewFeed = (container, feeds, i18n) => {
   container.append(card);
 };
 
+const renderModal = ({ modal }, { UIState, threads }, value) => {
+  if (!value) return;
+  const { currentId: id } = UIState.modal;
+  const desiredElement = threads.posts.find(({ postId }) => postId === Number(id));
+  const { title, description } = desiredElement;
+  const modalTitle = modal.querySelector('.modal-title');
+  const modalBody = modal.querySelector('.modal-body');
+  modalTitle.textContent = title;
+  modalBody.textContent = description;
+};
+
 const handleErrors = (elements, error, i18n) => {
   const { message } = error;
   if (!message) return;
@@ -144,13 +145,11 @@ const handleErrors = (elements, error, i18n) => {
   feedback.textContent = i18n.t(`messages.${message}`);
 };
 
-const addNewFeedHandler = () => (elements, state, i18n) => {
+const handleNewFeed = (elements, state, i18n) => {
   const { feedback } = elements;
   const { message } = state;
   feedback.textContent = i18n.t(`messages.${message}`);
 };
-
-const handleNewFeed = addNewFeedHandler();
 
 const handleProcessState = (elements, processState) => {
   switch (processState) {
@@ -181,10 +180,13 @@ const handleProcessState = (elements, processState) => {
 const initView = (elements, i18n, state) => (path, value) => {
   switch (path) {
     case ('form.url'):
-    case ('urls'):
     case ('currentRoute'):
     case ('UIState.checkedPosts'):
+    case ('UIState.modal.currentId'):
     case ('message'):
+      break;
+    case ('UIState.modal.show'):
+      renderModal(elements, state, value);
       break;
     case ('form.valid'):
       if (!value) {
