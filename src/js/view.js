@@ -37,10 +37,15 @@ const generateContainers = () => {
   });
 };
 
-const makeLinkVisited = (element) => {
-  const linkElement = element.parentNode.querySelector('a');
-  linkElement.className = '';
-  linkElement.classList.add(...classLists.aVisited);
+const makeLinkVisited = (value, prevValue) => {
+  value.forEach((key) => {
+    if (prevValue.has(key)) {
+      return;
+    }
+    const linkElement = document.querySelector(`[data-id="${key}"]`);
+    linkElement.className = '';
+    linkElement.classList.add(...classLists.aVisited);
+  });
 };
 
 const createNewListLink = (link, title, postId, isChecked) => {
@@ -90,15 +95,9 @@ const renderNewPosts = (elements, newPosts, checked, i18n) => {
     const {
       title, link, postId,
     } = post;
-    const isChecked = checked.some(({ id }) => id === postId);
+    const isChecked = checked.has(postId);
     const a = createNewListLink(link, title, postId, isChecked);
     const button = createNewListButton(postId, i18n);
-    [a, button].forEach((el) => el.addEventListener('click', () => {
-      if (!isChecked) {
-        checked.push({ id: postId, checked: true });
-      }
-      makeLinkVisited(el);
-    }));
     const li = createNewListItem(a, button);
     ul.append(li);
   });
@@ -147,8 +146,8 @@ const handleErrors = (elements, error, i18n) => {
 
 const handleNewFeed = (elements, state, i18n) => {
   const { feedback } = elements;
-  const { message } = state;
-  feedback.textContent = i18n.t(`messages.${message}`);
+  const { processState } = state;
+  feedback.textContent = i18n.t(`messages.${processState}`);
 };
 
 const handleProcessState = (elements, processState) => {
@@ -177,13 +176,10 @@ const handleProcessState = (elements, processState) => {
   }
 };
 
-const initView = (elements, i18n, state) => (path, value) => {
+const initView = (elements, i18n, state) => (path, value, pv) => {
   switch (path) {
-    case ('form.url'):
-    case ('currentRoute'):
     case ('UIState.checkedPosts'):
-    case ('UIState.modal.currentId'):
-    case ('message'):
+      makeLinkVisited(value, pv);
       break;
     case ('UIState.modal.show'):
       renderModal(elements, state, value);
@@ -207,7 +203,7 @@ const initView = (elements, i18n, state) => (path, value) => {
       handleProcessState(elements, value);
       break;
     default:
-      throw new Error(`Unexpected path: ${path}`);
+      break;
   }
 };
 

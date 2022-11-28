@@ -59,14 +59,16 @@ const checkNewPosts = (state) => {
     const { threads: { feeds } } = state;
     const feedsUrls = feeds.map(({ url }) => url);
     setTimeout(() => {
-      Promise.allSettled(feedsUrls.map((url, index) => makeRequest(url)
-        .then((data) => {
-          const { id } = feeds[index];
-          state.threads.posts = addNewPosts(state.threads.posts, data, id);
+      Promise.allSettled(feedsUrls.map((url) => makeRequest(url)))
+        .then((promises) => {
+          promises.forEach((promise, index) => {
+            if (promise.reason) {
+              return;
+            }
+            const { id } = feeds[index];
+            state.threads.posts = addNewPosts(state.threads.posts, promise.value, id);
+          });
         })
-        .catch((e) => {
-          throw e;
-        })))
         .then(() => {
           handler();
         });
@@ -83,7 +85,7 @@ export default () => {
       valid: false,
     },
     UIState: {
-      checkedPosts: [],
+      checkedPosts: new Set(),
       modal: {
         show: false,
         currentId: null,
@@ -95,8 +97,6 @@ export default () => {
     },
     processState: 'pending',
     error: null,
-    message: '',
-    currentRoute: '',
   };
 
   const elements = {
@@ -119,6 +119,18 @@ export default () => {
     .then(() => {
       const state = onChange(initialState, initView(elements, i18nextInstance, initialState));
       checkNewPosts(state);
+
+      document.addEventListener('click', (e) => {
+        const { id: postId } = e.target.dataset;
+        if (!postId) {
+          return;
+        }
+        const { UIState: { checkedPosts: checked } } = state;
+        const isChecked = checked.has(postId);
+        if (!isChecked) {
+          checked.add(Number(postId));
+        }
+      });
 
       elements.modal.addEventListener('show.bs.modal', (e) => {
         const { id } = e.relatedTarget.dataset;
@@ -150,7 +162,6 @@ export default () => {
             threads.posts = addNewPosts(threads.posts, data, id);
             state.error = null;
             state.processState = 'success';
-            state.message = 'added';
             form.valid = true;
             form.url = '';
           })

@@ -3,7 +3,7 @@ export default {
     messages: {
       invalidUrl: 'Ссылка должна быть валидным URL',
       existingFeed: 'RSS уже существует',
-      added: 'RSS успешно загружен',
+      success: 'RSS успешно загружен',
       networkError: 'Ошибка сети',
       parsingError: 'Ресурс не содержит валидный RSS',
     },
