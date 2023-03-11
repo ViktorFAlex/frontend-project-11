@@ -1,6 +1,10 @@
 # <p align=center> RSS aggregator </p>
 ### Hexlet tests and linter status: &emsp; &emsp; &emsp; Code climate:
 &emsp; &emsp; &emsp; [![Actions Status](https://github.com/ViktorFAlex/frontend-project-11/workflows/hexlet-check/badge.svg)](https://github.com/ViktorFAlex/frontend-project-11/actions) &emsp; &emsp; &emsp; &emsp; &emsp; &emsp; <a href="https://codeclimate.com/github/ViktorFAlex/frontend-project-11/maintainability"><img src="https://api.codeclimate.com/v1/badges/1b3e40b789172d759429/maintainability" /></a>
+
+### Preview:
+<img src="https://github.com/ViktorFAlex/projects-previews/blob/main/rssagregator.gif" width="800" height="450">
+
 ### Link for deployed page: https://rss-aggregator-eosin.vercel.app/  
 
 #### Description: 
